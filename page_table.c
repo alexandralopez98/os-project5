@@ -13,8 +13,7 @@ Make all of your changes to main.c instead.
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <sys/ucontext.h>
+#include <ucontext.h>
 
 #include "page_table.h"
 

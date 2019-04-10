@@ -5,7 +5,6 @@ Make all of your changes to main.c instead.
 
 #include "disk.h"
 
-#include <sys/_types.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,8 +12,8 @@ Make all of your changes to main.c instead.
 #include <errno.h>
 #include <fcntl.h>
 
-extern ssize_t pread (int __fd, void *__buf, size_t __nbytes, off_t __offset);
-extern ssize_t pwrite (int __fd, const void *__buf, size_t __nbytes, off_t __offset);
+extern ssize_t pread (int __fd, void *__buf, size_t __nbytes, __off_t __offset);
+extern ssize_t pwrite (int __fd, const void *__buf, size_t __nbytes, __off_t __offset);
 
 
 struct disk {
