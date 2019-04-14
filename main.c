@@ -17,8 +17,9 @@ how to use the page table and disk interfaces.
 
 void page_fault_handler( struct page_table *pt, int page )
 {
-	printf("page fault on page #%d\n",page);
-	exit(1);
+	page_table_set_entry(pt,page,page,PROT_READ|PROT_WRITE);
+	// printf("page fault on page #%d\n",page);
+	// exit(1);
 }
 
 int main( int argc, char *argv[] )
@@ -30,6 +31,7 @@ int main( int argc, char *argv[] )
 
 	int npages = atoi(argv[1]);
 	int nframes = atoi(argv[2]);
+	char *algorithm = argv[3];
 	const char *program = argv[4];
 
 	struct disk *disk = disk_open("myvirtualdisk",npages);
