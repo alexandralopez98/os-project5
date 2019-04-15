@@ -35,7 +35,7 @@ void rand_replacement_handler(struct page_table *pt, int page) {
 		{
 			//randomly select a frame and remove that page
 			frInd = (int) lrand48() % nframes;
-			remove_page(pt, fIndex);
+			remove_page(pt, frIndex);
 		}
 
 		disk_read(disk, page, &physmem[frInd*PAGE_SIZE]);
