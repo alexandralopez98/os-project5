@@ -100,7 +100,6 @@ void page_fault_handler( struct page_table *pt, int page )
 	if (bits == 0) {
 		frame = findFreeFrame();
 		frameTable[frame].availability = 1;
-		printf("frame: %d\n", frame);
 
 		// Frame Table is full; replacement policy must be called
 		if (frame == -1) {
@@ -108,7 +107,6 @@ void page_fault_handler( struct page_table *pt, int page )
 			//TODO: call replacement policies (index will be returned from all of them)
 			if (strcmp(algorithm, "fifo") == 0) {
 				index = fifo_replacement();
-				printf("after fifo replacement\n");
 				printQueue();
 			}
 
@@ -128,7 +126,6 @@ void page_fault_handler( struct page_table *pt, int page )
 		// Frame Table is not full; add frame to FIFO array
 		else {
 			enqueue(frame);
-			printf("after single enqueue\n");
 			printQueue();
 		}
 		
