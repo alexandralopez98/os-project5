@@ -38,23 +38,30 @@ int size = 0; // keeps track of how many items have been pushed to the FIFO arra
 int head = -1;
 int tail = -1;
 
+void printQueue() {
+	int i;
+	printf("FIFO QUEUE\n");
+	for (i = 0; i < nframes; i++){
+		printf("%d ", fifoArray[i]);
+	}
+	printf("\n");
+}
+
 // Push Frame Table index to FIFO queue
 void enqueue(int index) {
-	if (size != nframes) {
-		if (tail == nframes - 1) {
-			tail = -1;
-		}
-		fifoArray[++tail] = index;
-		size++;
+	if (size < nframes) {
+		fifoArray[size++] = index;
 	}
 }
 
 // Pop Frame Table index from FIFO queue
 int dequeue(){
-	int index = fifoArray[head++];
-	if (head == nframes) {
-		head = 0;
+	int index = fifoArray[0];
+	int i;
+	for (i = 0; i < nframes-1; i++) {
+		fifoArray[i] = fifoArray[i+1];
 	}
+	fifoArray[nframes-1] = 0;
 	size--;
 	return index;
 }
@@ -92,6 +99,8 @@ void page_fault_handler( struct page_table *pt, int page )
 	// The page has no permissions, and thus is not in physical memory
 	if (bits == 0) {
 		frame = findFreeFrame();
+		frameTable[frame].availability = 1;
+		printf("frame: %d\n", frame);
 
 		// Frame Table is full; replacement policy must be called
 		if (frame == -1) {
@@ -99,6 +108,8 @@ void page_fault_handler( struct page_table *pt, int page )
 			//TODO: call replacement policies (index will be returned from all of them)
 			if (strcmp(algorithm, "fifo") == 0) {
 				index = fifo_replacement();
+				printf("after fifo replacement\n");
+				printQueue();
 			}
 
 			// Get page table entry of page that will be removed
@@ -117,6 +128,8 @@ void page_fault_handler( struct page_table *pt, int page )
 		// Frame Table is not full; add frame to FIFO array
 		else {
 			enqueue(frame);
+			printf("after single enqueue\n");
+			printQueue();
 		}
 		
 		// Read in new data and update its entry in the page table
