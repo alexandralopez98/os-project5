@@ -72,6 +72,7 @@ int findFreeFrame() {
 		
 		// Frame is open
 		if (frameTable[i].availability == 0) {
+			frameTable[i].availability = 1;
 			return i;
 		} 
 	}
@@ -98,41 +99,43 @@ void page_fault_handler( struct page_table *pt, int page )
 
 	// The page has no permissions, and thus is not in physical memory
 	if (bits == 0) {
-		frame = findFreeFrame();
-		frameTable[frame].availability = 1;
+		int free_frame = findFreeFrame(); // frame where new data will be stored
 
 		// Frame Table is full; replacement policy must be called
-		if (frame == -1) {
-			int index;
+		if (free_frame == -1) {
 			//TODO: call replacement policies (index will be returned from all of them)
 			if (strcmp(algorithm, "fifo") == 0) {
-				index = fifo_replacement();
-				printQueue();
+				free_frame = fifo_replacement();
 			}
 
+			int page_to_be_removed = frameTable[free_frame].page;
+
+			int frame_read;
+			int bits_read;
+
 			// Get page table entry of page that will be removed
-			page_table_get_entry(pt, frameTable[index].page, &frame, &bits);
+			page_table_get_entry(pt, page_to_be_removed, &frame_read, &bits_read);
 
 			// Data at index is modified and must be written back to disk
-			if (bits == (PROT_READ|PROT_WRITE)) {
-				disk_write(disk, frameTable[index].page, &physmem[frame*PAGE_SIZE]);
+			if (bits_read & PROT_WRITE) {
+				disk_write(disk, page_to_be_removed, &physmem[frame_read*PAGE_SIZE]);
 				disk_writes++;
 			}
 
 			// Update page table for page we removed
-			page_table_set_entry(pt, frameTable[index].page, 0, 0);
-			
+			page_table_set_entry(pt, page_to_be_removed, 0, 0);
 		}
 		// Frame Table is not full; add frame to FIFO array
 		else {
-			enqueue(frame);
-			printQueue();
+			enqueue(free_frame);
+			// printQueue();
 		}
 		
 		// Read in new data and update its entry in the page table
-		disk_read(disk, page, &physmem[frame*PAGE_SIZE]);
+		disk_read(disk, page, &physmem[free_frame*PAGE_SIZE]);
 		disk_reads++;
-		page_table_set_entry(pt, page, frame, PROT_READ);
+		page_table_set_entry(pt, page, free_frame, PROT_READ);
+		frameTable[free_frame].page = page;
 
 	}
 	// The page has PROT_READ, so we add the write bit
