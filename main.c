@@ -14,12 +14,123 @@ how to use the page table and disk interfaces.
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
+
+#define MAX 100
+
+struct frameTracker {
+	int page;
+	int availability;
+};
+
+char *algorithm;
+int nframes;
+struct frameTracker frameTable[MAX]; 
+struct disk *disk;
+char *physmem;
+int page_faults = 0;
+int disk_reads = 0;
+int disk_writes = 0;
+
+/* FIFO array variables */
+int fifoArray[MAX];
+int size = 0; // keeps track of how many items have been pushed to the FIFO array
+int head = -1;
+int tail = -1;
+
+// Push Frame Table index to FIFO queue
+void enqueue(int index) {
+	if (size != nframes) {
+		if (tail == nframes - 1) {
+			tail = -1;
+		}
+		fifoArray[++tail] = index;
+		size++;
+	}
+}
+
+// Pop Frame Table index from FIFO queue
+int dequeue(){
+	int index = fifoArray[head++];
+	if (head == nframes) {
+		head = 0;
+	}
+	size--;
+	return index;
+}
+
+int findFreeFrame() {
+	int i;
+	for (i = 0; i < nframes; i++) {
+		
+		// Frame is open
+		if (frameTable[i].availability == 0) {
+			return i;
+		} 
+	}
+	
+	// Frame table is full
+	return -1;
+}
+
+int fifo_replacement() {
+	// update FIFO queue
+	int index = dequeue();
+	enqueue(index);
+
+	return index;	
+}
 
 void page_fault_handler( struct page_table *pt, int page )
 {
-	page_table_set_entry(pt,page,page,PROT_READ|PROT_WRITE);
-	// printf("page fault on page #%d\n",page);
-	// exit(1);
+	page_faults++;
+	int frame;
+	int bits;
+
+	page_table_get_entry(pt, page, &frame, &bits);
+
+	// The page has no permissions, and thus is not in physical memory
+	if (bits == 0) {
+		frame = findFreeFrame();
+
+		// Frame Table is full; replacement policy must be called
+		if (frame == -1) {
+			int index;
+			//TODO: call replacement policies (index will be returned from all of them)
+			if (strcmp(algorithm, "fifo") == 0) {
+				index = fifo_replacement();
+			}
+
+			// Get page table entry of page that will be removed
+			page_table_get_entry(pt, frameTable[index].page, &frame, &bits);
+
+			// Data at index is modified and must be written back to disk
+			if (bits == (PROT_READ|PROT_WRITE)) {
+				disk_write(disk, frameTable[index].page, &physmem[frame*PAGE_SIZE]);
+				disk_writes++;
+			}
+
+			// Update page table for page we removed
+			page_table_set_entry(pt, frameTable[index].page, 0, 0);
+			
+		}
+		// Frame Table is not full; add frame to FIFO array
+		else {
+			enqueue(frame);
+		}
+		
+		// Read in new data and update its entry in the page table
+		disk_read(disk, page, &physmem[frame*PAGE_SIZE]);
+		disk_reads++;
+		page_table_set_entry(pt, page, frame, PROT_READ);
+
+	}
+	// The page has PROT_READ, so we add the write bit
+	else {
+		page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
+	}
+
+	return;
 }
 
 int main( int argc, char *argv[] )
@@ -30,11 +141,11 @@ int main( int argc, char *argv[] )
 	}
 
 	int npages = atoi(argv[1]);
-	int nframes = atoi(argv[2]);
-	char *algorithm = argv[3];
+	nframes = atoi(argv[2]);
+	algorithm = argv[3];
 	const char *program = argv[4];
 
-	struct disk *disk = disk_open("myvirtualdisk",npages);
+	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
 		return 1;
@@ -49,7 +160,7 @@ int main( int argc, char *argv[] )
 
 	char *virtmem = page_table_get_virtmem(pt);
 
-	char *physmem = page_table_get_physmem(pt);
+	physmem = page_table_get_physmem(pt);
 
 	if(!strcmp(program,"alpha")) {
 		alpha_program(virtmem,npages*PAGE_SIZE);
@@ -70,6 +181,10 @@ int main( int argc, char *argv[] )
 
 	page_table_delete(pt);
 	disk_close(disk);
+
+	printf("Page faults: %d\n", page_faults);
+	printf("Disk reads: %d\n", disk_reads);
+	printf("Disk writes: %d\n", disk_writes);
 
 	return 0;
 }
