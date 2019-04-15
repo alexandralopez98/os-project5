@@ -35,7 +35,7 @@ void rand_replacement_handler(struct page_table *pt, int page) {
 		{
 			//randomly select a frame and remove that page
 			frInd = (int) lrand48() % nframes;
-			// TODO: remove the page using the find
+			remove_page(pt, fIndex);
 		}
 
 		disk_read(disk, page, &physmem[frInd*PAGE_SIZE]);
@@ -46,7 +46,7 @@ void rand_replacement_handler(struct page_table *pt, int page) {
 		bits = PROT_READ | PROT_WRITE;
 		frInd = frame;
 	} else {
-		printf("Error on random page fault.\n");
+		printf("Random page fault failed\n");
 		exit(1);
 	}
 
@@ -66,6 +66,22 @@ void page_fault_handler( struct page_table *pt, int page )
 
 	// printf("page fault on page #%d\n",page);
 	// exit(1);
+}
+
+//remove a page
+void remove_page(struct page_table *pt, int frameNumber)
+{
+	//if there is a dirty bit then write back to disk
+	if(frameTable[frameNumber].bits & PROT_WRITE)
+	{
+		disk_write(disk, frameTable[frameNumber].page, &physmem[frameNumber*PAGE_SIZE]);
+		diskWrites++;
+	}
+	//set the entry to not be writen; update the frame table to represent that and update the front "pointer"
+	page_table_set_entry(pt, frameTable[frameNumber].page, frameNumber, 0);
+	frameTable[frameNumber].bits = 0;
+	front=(front+1)%nframes;
+
 }
 
 int main( int argc, char *argv[] )
