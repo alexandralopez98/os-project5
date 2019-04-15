@@ -89,6 +89,33 @@ int fifo_replacement() {
 	return index;	
 }
 
+int rand_replacement() {
+	int index = rand() % nframes;
+	return index;
+}
+
+int custom_replacement(struct page_table *pt) {
+
+	int index = rand_replacement();
+
+	int i;
+	int bits, frame;
+	int page = frameTable[index].page;
+	page_table_get_entry(pt, page, &frame, &bits);
+	for (i = 0; i < 100; i++) {
+		if (bits & PROT_WRITE) {
+			index = rand_replacement();
+			page = frameTable[index].page;
+			page_table_get_entry(pt, page, &frame, &bits);
+		}
+	}
+
+	return index;
+
+
+
+}
+
 void page_fault_handler( struct page_table *pt, int page )
 {
 	page_faults++;
@@ -103,9 +130,18 @@ void page_fault_handler( struct page_table *pt, int page )
 
 		// Frame Table is full; replacement policy must be called
 		if (free_frame == -1) {
-			//TODO: call replacement policies (index will be returned from all of them)
 			if (strcmp(algorithm, "fifo") == 0) {
 				free_frame = fifo_replacement();
+			}
+			else if (strcmp(algorithm, "rand") == 0) {
+				free_frame = rand_replacement();
+			}
+			else if (strcmp(algorithm, "custom") == 0) {
+				free_frame = custom_replacement(pt);
+			}
+			else {
+				printf("main: Invalid algorithm!\n");
+				exit(1);
 			}
 
 			int page_to_be_removed = frameTable[free_frame].page;
